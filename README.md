@@ -4,9 +4,9 @@
 
 **Un-nexted** is a raw implementation of the server-side rendering (SSR) pipeline that powers modern web frameworks. It strips away the complexity of production codebases to reveal the fundamental architecture: how a server turns React components into HTML strings, and how the browser "hydrates" that static HTML into an interactive app.
 
-## 🧠 Why I Built This
+##  Why I Built This
 
-As a developer, I used Next.js daily but treated it as a black box. I knew *how* to use `getServerSideProps` and file-based routing, but I didn't truly understand *how they worked*.
+I used Next.js daily but treated it as a black box. I knew *how* to use `getServerSideProps` and file-based routing, but I didn't truly understand *how they worked*.
 
 I built **Un-nexted** to answer specific engineering questions:
 *   **Routing:** How does a file on a disk (`pages/about.tsx`) become a URL route (`/about`) without me writing a router config?
@@ -18,7 +18,7 @@ I built **Un-nexted** to answer specific engineering questions:
 
 ***
 
-## 🏗️ Architecture
+##  Architecture
 
 The project implements the "Isomorphic" React flow in four distinct stages:
 
@@ -37,7 +37,7 @@ The project implements the "Isomorphic" React flow in four distinct stages:
 
 ***
 
-## ⚡ Quick Start
+##  Quick Start
 
 ```bash
 # 1. Install dependencies
@@ -58,7 +58,7 @@ Visit `http://localhost:3000`.
 
 ***
 
-## 📂 Project Structure
+##  Project Structure
 
 Every file has a specific purpose in the pipeline:
 
@@ -78,7 +78,7 @@ src/
 
 ***
 
-## 🛠️ How It Works (The Code Patterns)
+##  How It Works (The Code Patterns)
 
 ### 1. File-System Routing
 Instead of a static route config, we scan the directory at startup.
@@ -109,7 +109,7 @@ const html = renderToString(<Page {...props} />);
 
 ***
 
-## 📝 Creating Pages
+##  Creating Pages
 
 ### Dynamic Routes
 Create a file named with brackets, e.g., `src/pages/blog/[slug].tsx`.
@@ -136,17 +136,11 @@ export default function Users({ users }) {
 
 ***
 
-## ⚠️ Disclaimer
-**This is strictly an educational tool.** It lacks production features like:
+It lacks production features like:
 *   Caching / ISR (Incremental Static Regeneration)
 *   API Routes
 *   Image Optimization
 *   Security Headers
 *   Advanced Error Boundaries
 
-## 📄 License
-MIT
 
-***
-
-*Built by [krockxz](https://github.com/krockxz) to learn the internals of React meta-frameworks.*
