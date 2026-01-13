@@ -1,178 +1,152 @@
 # Un-nexted
 
-> A simplified Next.js clone built from scratch with Bun, React 18, and TypeScript
+> **De-mystifying the meta-framework.** A "build-your-own" implementation of Next.js core features from scratch.
 
-**Un-nexted** demonstrates the core concepts behind modern meta-frameworks: server-side rendering (SSR), client-side hydration, file-system routing, and server-side data fetching.
+**Un-nexted** is a raw implementation of the server-side rendering (SSR) pipeline that powers modern web frameworks. It strips away the complexity of production codebases to reveal the fundamental architecture: how a server turns React components into HTML strings, and how the browser "hydrates" that static HTML into an interactive app.
 
-## What This Is
+## 🧠 Why I Built This
 
-An educational project that implements the fundamental architecture of frameworks like Next.js:
+As a developer, I used Next.js daily but treated it as a black box. I knew *how* to use `getServerSideProps` and file-based routing, but I didn't truly understand *how they worked*.
 
-- **Server-Side Rendering** - Pages render to HTML on the server using `renderToString()`
-- **Client Hydration** - React 18's `hydrateRoot()` attaches event listeners to the static HTML
-- **File-System Routing** - Files in `src/pages/` automatically become routes
-- **Dynamic Routes** - `[param].tsx` files match dynamic URL segments
-- **Server Props** - `getServerSideProps()` fetches data before rendering
+I built **Un-nexted** to answer specific engineering questions:
+*   **Routing:** How does a file on a disk (`pages/about.tsx`) become a URL route (`/about`) without me writing a router config?
+*   **SSR vs. CSR:** How exactly does the server send HTML that React can "pick up" later?
+*   **Hydration:** What actually happens during `hydrateRoot`, and why do hydration mismatch errors occur?
+*   **Bundling:** How do we bundle code differently for the server (Node/Bun) vs. the browser?
 
-## What This Is Not
+**Key Insight:** Next.js is "just" React + a Compiler + a Server. The "magic" is mostly string manipulation, glob patterns, and careful state synchronization.
 
-- Not production-ready
-- Not a Next.js replacement
-- No API routes, image optimization, ISR, or App Router
-- Minimal performance optimizations
+***
 
-## Quick Start
+## 🏗️ Architecture
+
+The project implements the "Isomorphic" React flow in four distinct stages:
+
+1.  **The Build Step (Bundler):**
+    *   Uses `Bun.build` to compile client-side code.
+    *   Separates server-only logic (secrets, DB calls) from client bundles.
+2.  **The Server (SSR):**
+    *   Interlopes requests and matches URLs to file paths.
+    *   Executes `getServerSideProps` to fetch data.
+    *   Renders the component tree to a string using `react-dom/server`.
+3.  **The Transport:**
+    *   Injects initial data (`__UNNEXTED_DATA__`) into the HTML window object so the client doesn't need to refetch data.
+4.  **The Client (Hydration):**
+    *   The browser loads the JS bundle.
+    *   React reads the server-rendered HTML and attaches event listeners (Hydration).
+
+***
+
+## ⚡ Quick Start
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 bun install
 
-# Start development server
+# 2. Start the development server (Builds + Serves)
 bun run dev
 ```
 
-Visit `http://localhost:3000` and explore:
+Visit `http://localhost:3000`.
 
-| Route | Description |
-|-------|-------------|
-| `/` | Homepage with interactive counter |
-| `/about` | About page with interactive demo |
-| `/blog/hello-world` | Dynamic route example |
-| `/users` | Server-side data fetching demo |
+### Explore the Demos
+| Route | Feature Demonstrated |
+| :--- | :--- |
+| `/` | **Hydration:** Static HTML becomes interactive (Counter). |
+| `/users` | **SSR Data:** Fetches data on the server before rendering. |
+| `/blog/hello-world` | **Dynamic Routing:** Matches `[slug].tsx` patterns. |
 
-## Project Structure
+***
 
+## 📂 Project Structure
+
+Every file has a specific purpose in the pipeline:
+
+```text
+src/
+├── app/
+│   ├── server.ts      # The HTTP server (matches URL -> Page)
+│   ├── router.ts      # The "Magic": Scans filesystem to build route map
+│   ├── build.ts       # The Bundler: Compiles client.tsx for the browser
+│   └── client.tsx     # The Entry Point: Runs in browser to hydrate DOM
+├── pages/             # Your application code (Next.js style)
+│   ├── index.tsx
+│   └── blog/
+│       └── [slug].tsx # Dynamic route example
+└── types.ts
 ```
-un-nexted/
-├── src/
-│   ├── types.ts          # Type definitions
-│   ├── router.ts         # File-system router
-│   ├── server.ts         # SSR HTTP server
-│   ├── build.ts          # Bun.build wrapper
-│   ├── client.tsx        # Client hydration entry
-│   └── pages/            # Your pages go here
-│       ├── index.tsx
-│       ├── about.tsx
-│       ├── 404.tsx
-│       ├── users.tsx     # Demonstrates getServerSideProps
-│       └── blog/
-│           └── [slug].tsx  # Dynamic route
-├── dist/                 # Build output (generated)
-└── package.json
+
+***
+
+## 🛠️ How It Works (The Code Patterns)
+
+### 1. File-System Routing
+Instead of a static route config, we scan the directory at startup.
+```typescript
+// router.ts logic
+const glob = new Glob("src/pages/**/*.tsx");
+for await (const file of glob.scan()) {
+  const route = file.replace("src/pages", "").replace(".tsx", "");
+  routes.set(route, file); // Maps "/about" -> "src/pages/about.tsx"
+}
 ```
 
-## Creating Pages
+### 2. Server-Side Data Fetching
+We emulate Next.js's data fetching pattern by calling a static function on the component before rendering.
+```typescript
+// server.ts logic
+const Page = await import(filePath);
+let props = {};
 
-### Static Route
+// If the page needs data, fetch it on the server
+if (Page.getServerSideProps) {
+  props = await Page.getServerSideProps(context);
+}
 
-Create `src/pages/foo.tsx`:
+// Render with data
+const html = renderToString(<Page {...props} />);
+```
 
+***
+
+## 📝 Creating Pages
+
+### Dynamic Routes
+Create a file named with brackets, e.g., `src/pages/blog/[slug].tsx`.
 ```tsx
-export default function Foo() {
-  return <div>Foo Page</div>;
+// src/pages/blog/[slug].tsx
+export default function Post({ params }) {
+  return <h1>Reading: {params.slug}</h1>;
 }
 ```
 
-→ Accessible at `/foo`
-
-### Dynamic Route
-
-Create `src/pages/blog/[slug].tsx`:
-
+### Data Fetching
+Export `getServerSideProps` to fetch data server-side.
 ```tsx
-interface BlogPostProps {
-  params: { slug: string };
-}
-
-export default function BlogPost({ params }: BlogPostProps) {
-  return <div>Post: {params.slug}</div>;
-}
-```
-
-→ `/blog/hello-world` renders with `params.slug = "hello-world"`
-
-### Server-Side Data Fetching
-
-```tsx
-interface PageProps {
-  users: Array<{ id: number; name: string }>;
-}
-
+// src/pages/users.tsx
 export async function getServerSideProps() {
-  // Fetch from API or database
-  const users = await fetch('https://api.example.com/users').then(r => r.json());
-
-  return { props: { users } };
+  const data = await db.getUsers();
+  return { props: { users: data } };
 }
 
-export default function Users({ users }: PageProps) {
-  return (
-    <ul>
-      {users.map(user => <li key={user.id}>{user.name}</li>)}
-    </ul>
-  );
+export default function Users({ users }) {
+  return <div>{users.map(u => <div key={u.id}>{u.name}</div>)}</div>;
 }
 ```
 
-## How It Works
+***
 
-### SSR Pipeline
+## ⚠️ Disclaimer
+**This is strictly an educational tool.** It lacks production features like:
+*   Caching / ISR (Incremental Static Regeneration)
+*   API Routes
+*   Image Optimization
+*   Security Headers
+*   Advanced Error Boundaries
 
-```
-Request → Router matches URL → Import component → getServerSideProps? → renderToString() → HTML response
-```
-
-### Hydration Pipeline
-
-```
-Browser loads → Parse __UNNEXTED_DATA__ → Match route → Import component → hydrateRoot() → Interactive
-```
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Runtime | Bun 1.2+ |
-| Framework | React 18.3 |
-| Language | TypeScript 5.9 |
-| Server | `Bun.serve()` |
-| Bundler | `Bun.build()` |
-
-## Scripts
-
-```bash
-bun run dev    # Start dev server (builds + serves)
-bun run build  # Build client bundle only
-bun run start  # Production mode
-```
-
-## Common Issues
-
-### "Hydration failed" errors
-
-The server-rendered HTML must match the client's initial render exactly. Common causes:
-
-- Using `Math.random()`, `Date.now()`, or other non-deterministic values
-- Conditional rendering based on `typeof window`
-- CSS-in-JS libraries that render differently on server vs client
-
-### "Component not found" errors
-
-Check that:
-- File is in `src/pages/`
-- File exports a default component
-- File extension is `.tsx`
-
-### Route not matching
-
-- Index routes must be `index.tsx`, not `Index.tsx`
-- Dynamic segments use square brackets: `[slug].tsx`
-- Check the server logs for registered routes
-
-## License
-
+## 📄 License
 MIT
 
----
+***
 
-**Key insight**: Next.js is "just" React + a compiler + a server. The magic is glob patterns and string manipulation. The hard part is getting hydration right.
+*Built by [krockxz](https://github.com/krockxz) to learn the internals of React meta-frameworks.*
