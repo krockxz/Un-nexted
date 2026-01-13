@@ -31,7 +31,14 @@ export async function getServerSideProps() {
     { id: 3, name: 'Charlie Brown', email: 'charlie@example.com' },
     { id: 4, name: 'Diana Prince', email: 'diana@example.com' },
     { id: 5, name: 'Evan Williams', email: 'evan@example.com' },
+    { id: 6, name: 'Frank Miller', email: 'frank@example.com' },
+    { id: 7, name: 'Grace Hopper', email: 'grace@example.com' },
+    { id: 8, name: 'Hank Aaron', email: 'hank@example.com' },
+    { id: 9, name: 'Ivy League', email: 'ivy@example.com' },
+    { id: 10, name: 'Jack Daniels', email: 'jack@example.com' },
   ];
+
+  console.log('[Data] Fetched 10 users');
 
   return {
     props: {

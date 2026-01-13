@@ -49,9 +49,13 @@ function generateHTML(
 async function getPageComponent(filePath: string): Promise<PageComponent | null> {
   try {
     // Convert file path to import path
-    const importPath = filePath.replace(/^\.\/src\//, '../').replace(/\.tsx$/, '');
+    const importPath = filePath.replace(/^\.\/src\//, './').replace(/\.tsx$/, '');
     const module = await import(importPath);
-    return module.default || module;
+    const Component = module.default || module;
+    if (module.getServerSideProps) {
+      Component.getServerSideProps = module.getServerSideProps;
+    }
+    return Component;
   } catch (e) {
     console.error(`[Server] Failed to import component from ${filePath}:`, e);
     return null;
@@ -62,7 +66,7 @@ async function getPageComponent(filePath: string): Promise<PageComponent | null>
  * Render a page to HTML
  */
 async function renderPage(pathname: string): Promise<{ html: string; status: number }> {
-  console.log(`[Server] Rendering: ${pathname}`);
+  console.log(`[SSR] Rendering ${pathname}...`);
 
   // Match route
   const match = matchRoute(pathname);

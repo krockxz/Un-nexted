@@ -4,6 +4,8 @@
 
 **Un-nexted** is a raw implementation of the server-side rendering (SSR) pipeline that powers modern web frameworks. It strips away the complexity of production codebases to reveal the fundamental architecture: how a server turns React components into HTML strings, and how the browser "hydrates" that static HTML into an interactive app.
 
+![Project Screenshot](public/stage-1768329529929.png)
+
 ##  Why I Built This
 
 I used Next.js daily but treated it as a black box. I knew *how* to use `getServerSideProps` and file-based routing, but I didn't truly understand *how they worked*.
@@ -21,6 +23,32 @@ I built **Un-nexted** to answer specific engineering questions:
 ##  Architecture
 
 The project implements the "Isomorphic" React flow in four distinct stages:
+
+```mermaid
+graph TD
+    subgraph Build["1. Build Step"]
+        Bundler[Bun.build] -->|Compiles| ClientJS[Client Bundle]
+    end
+
+    subgraph Server["2. Server (SSR)"]
+        Req[Request] --> Router{Router}
+        Router -->|Match| Page[Page Component]
+        Page -->|Fetch Data| GSSP[getServerSideProps]
+        Page & GSSP -->|Render| HTML[HTML String]
+    end
+
+    subgraph Transport["3. Transport"]
+        HTML -->|Inject Data| Window[window.__DATA__]
+    end
+
+    subgraph Client["4. Client (Hydration)"]
+        Browser[Browser] -->|Load| ClientJS
+        ClientJS -->|Hydrate| Window
+    end
+
+    ClientJS -.-> Browser
+    HTML -.-> Browser
+```
 
 1.  **The Build Step (Bundler):**
     *   Uses `Bun.build` to compile client-side code.
@@ -93,6 +121,31 @@ for await (const file of glob.scan()) {
 
 ### 2. Server-Side Data Fetching
 We emulate Next.js's data fetching pattern by calling a static function on the component before rendering.
+
+```mermaid
+sequenceDiagram
+    participant Client as Browser
+    participant Server as HTTP Server
+    participant Router as File Router
+    participant Page as Page Component
+
+    Client->>Server: GET /url
+    Server->>Router: Match URL to File
+    Router-->>Server: Return "src/pages/..."
+    
+    Server->>Page: Import Component
+    
+    alt Has getServerSideProps
+        Server->>Page: Call getServerSideProps(ctx)
+        Page-->>Server: Return { props: ... }
+    end
+    
+    Server->>Page: Render <Page {...props} /> (SSR)
+    Page-->>Server: Return HTML String
+    
+    Server-->>Client: Send HTML + Initial State
+    Note over Client: React Hydrates DOM
+```
 ```typescript
 // server.ts logic
 const Page = await import(filePath);
